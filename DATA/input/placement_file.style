@@ -12,7 +12,7 @@ TECH asap7v3
 ############## active rule###################
 #############################################
 # diffusion gap number when the fin number is different 
-FIN_DIFF_GAP 0
+FIN_DIFF_GAP 1
 
 # diffusion gap number when the net is different
 NET_DIFF_GAP 1:
