@@ -584,18 +584,25 @@ void Placer::refineSolution() {
                     p.units.push_back(std::move(temp1));
                     p.units.push_back(std::move(temp2));
                 }*/
-                if (unit.nMinLeg % 2 == 0 && unit.pMinLeg % 2 == 0) {
-                    PlaceUnit temp = unit;
-                    temp.pair.nmos[0].nfin /= 2;
-                    temp.pair.pmos[0].nfin /= 2;
-                    temp.nMinLeg /= 2;
-                    temp.pMinLeg /= 2;
-                    temp.states.clear();
-                    temp.generateStates();
-                    p.units.push_back(temp);
-                    p.units.push_back(temp);
-                }
-                else p.units.push_back(unit);                
+                // DISABLED: No folding in refineSolution - keep original nfin
+                if (setting.folding_style == "none") {
+                    // Keep original unit without any folding
+                    p.units.push_back(unit);
+                } else {
+                    // Original folding logic (disabled when folding_style == "none")
+                    if (unit.nMinLeg % 2 == 0 && unit.pMinLeg % 2 == 0) {
+                        PlaceUnit temp = unit;
+                        temp.pair.nmos[0].nfin /= 2;
+                        temp.pair.pmos[0].nfin /= 2;
+                        temp.nMinLeg /= 2;
+                        temp.pMinLeg /= 2;
+                        temp.states.clear();
+                        temp.generateStates();
+                        p.units.push_back(temp);
+                        p.units.push_back(temp);
+                    }
+                    else p.units.push_back(unit);
+                }                
             }
             
             std::cout << "The number of units : " << p.units.size() << std::endl;

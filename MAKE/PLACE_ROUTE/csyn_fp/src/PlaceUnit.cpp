@@ -339,18 +339,25 @@ void PlaceUnit::generateStates() {
 
         nmos = pair.nmos[0];
 
-        // one fin height style
-        for (int fin = setting.NMOSMaxAllowedFin; fin >= 1; fin--) {
-            if (nmos.nfin < fin) continue;
-            if (nmos.nfin % fin == 0) {
-                std::vector<int> nfinShape(nmos.nfin / fin, fin);
-                for (int i = 0; i < nfinShape.size(); i += 2) nfinShape[i] *= -1;
-                nfinShapeSet.push_back(nfinShape);
-                for (int i = 0; i < nfinShape.size(); ++i) nfinShape[i] *= -1;
-                nfinShapeSet.push_back(nfinShape);
+        // DISABLED: No folding - use original nfin directly
+        if (setting.folding_style == "none") {
+            // Use original nfin without any folding
+            std::vector<int> nfinShape(1, nmos.nfin);
+            nfinShapeSet.push_back(nfinShape);
+        } else {
+            // one fin height style (original code)
+            for (int fin = setting.NMOSMaxAllowedFin; fin >= 1; fin--) {
+                if (nmos.nfin < fin) continue;
+                if (nmos.nfin % fin == 0) {
+                    std::vector<int> nfinShape(nmos.nfin / fin, fin);
+                    for (int i = 0; i < nfinShape.size(); i += 2) nfinShape[i] *= -1;
+                    nfinShapeSet.push_back(nfinShape);
+                    for (int i = 0; i < nfinShape.size(); ++i) nfinShape[i] *= -1;
+                    nfinShapeSet.push_back(nfinShape);
 
-                if (setting.folding_style == "static") break;
+                    if (setting.folding_style == "static") break;
 
+                }
             }
         }
         // two fin height style
@@ -430,23 +437,26 @@ void PlaceUnit::generateStates() {
 
         pmos = pair.pmos[0];
 
-        // one fin style
-        for (int fin = setting.PMOSMaxAllowedFin; fin >= 1; fin--) {
-            if (pmos.nfin < fin) continue;
-            if (pmos.nfin % fin == 0) {
-                std::vector<int> pfinShape(pmos.nfin / fin, fin);
-                for (int i = 0; i < pfinShape.size(); i += 2) pfinShape[i] *= -1;
-                pfinShapeSet.push_back(pfinShape);
-                for (int i = 0; i < pfinShape.size(); ++i) pfinShape[i] *= -1;
-                pfinShapeSet.push_back(pfinShape);
+        // DISABLED: No folding - use original nfin directly
+        if (setting.folding_style == "none") {
+            // Use original nfin without any folding
+            std::vector<int> pfinShape(1, pmos.nfin);
+            pfinShapeSet.push_back(pfinShape);
+        } else {
+            // one fin style (original code)
+            for (int fin = setting.PMOSMaxAllowedFin; fin >= 1; fin--) {
+                if (pmos.nfin < fin) continue;
+                if (pmos.nfin % fin == 0) {
+                    std::vector<int> pfinShape(pmos.nfin / fin, fin);
+                    for (int i = 0; i < pfinShape.size(); i += 2) pfinShape[i] *= -1;
+                    pfinShapeSet.push_back(pfinShape);
+                    for (int i = 0; i < pfinShape.size(); ++i) pfinShape[i] *= -1;
+                    pfinShapeSet.push_back(pfinShape);
 
-                if (setting.folding_style == "static") break;
+                    if (setting.folding_style == "static") break;
 
-
+                }
             }
-
-
-
         }   
         // two fin style
         /*

@@ -25,14 +25,14 @@ MIN_OD_JOG 1 # MIN_OD_JOG is longer than 1; MIN_OD_JOG 2
 ################ fin ########################
 #############################################
 
-# folding style
-FOLDING_STYLE dynamic # static or dynamic
+# folding style - DISABLED: No folding allowed
+FOLDING_STYLE none # static or dynamic or none
 
-# max fin number of nmos
-NMOS_MAX_FIN 3
+# max fin number of nmos - DISABLED: Use original nfin
+NMOS_MAX_FIN 1
 
-# max fin number of pmos
-PMOS_MAX_FIN 3
+# max fin number of pmos - DISABLED: Use original nfin  
+PMOS_MAX_FIN 1
 
 # DO NOT FIX
 MAX_STEP 10
