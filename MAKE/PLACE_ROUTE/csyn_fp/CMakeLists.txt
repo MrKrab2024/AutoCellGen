@@ -103,6 +103,21 @@ list(APPEND SRC_FILES_ROUTING_ "${PATH_SRC}/main_routing_only.cpp")
 
 set(SRC_FILES_ROUTING ${SRC_FILES_ROUTING_})
 
+# Create SRC_FILES for placement comparison version
+file(GLOB_RECURSE SRC_FILES_COMPARISON_
+	${PATH_SRC}/*.cpp
+	${PATH_SRC}/*.c)
+
+# Exclude main files for comparison version
+list(REMOVE_ITEM SRC_FILES_COMPARISON_ "${PATH_SRC}/main.cpp")
+list(REMOVE_ITEM SRC_FILES_COMPARISON_ "${PATH_SRC}/main_simple.cpp")
+list(REMOVE_ITEM SRC_FILES_COMPARISON_ "${PATH_SRC}/main_width_only.cpp")
+list(REMOVE_ITEM SRC_FILES_COMPARISON_ "${PATH_SRC}/main_placement_only.cpp")
+list(REMOVE_ITEM SRC_FILES_COMPARISON_ "${PATH_SRC}/main_routing_only.cpp")
+list(APPEND SRC_FILES_COMPARISON_ "${PATH_SRC}/main_placement_comparison.cpp")
+
+set(SRC_FILES_COMPARISON ${SRC_FILES_COMPARISON_})
+
 # Include Directories
 include_directories(headers ${PATH_SRC})
 # include_directories(headers ${PATH_SRC} ${Z3_CXX_INCLUDE_DIRS})
@@ -116,6 +131,7 @@ add_executable(placement ${SRC_FILES})
 add_executable(width_only ${SRC_FILES_WIDTH})
 add_executable(placement_only ${SRC_FILES_PLACEMENT})
 add_executable(routing_only ${SRC_FILES_ROUTING})
+add_executable(placement_comparison ${SRC_FILES_COMPARISON})
 
 # for static
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -124,6 +140,7 @@ target_link_libraries(placement PRIVATE Threads::Threads)
 target_link_libraries(width_only PRIVATE Threads::Threads)
 target_link_libraries(placement_only PRIVATE Threads::Threads)
 target_link_libraries(routing_only PRIVATE Threads::Threads)
+target_link_libraries(placement_comparison PRIVATE Threads::Threads)
 
 
 # Linker Flags
