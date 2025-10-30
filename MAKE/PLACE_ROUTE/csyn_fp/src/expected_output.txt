@@ -1,0 +1,47 @@
+=== 配对算法模拟运行 ===
+测试Cell: TEST_CELL
+晶体管数量: 6
+
+=== 原始晶体管信息 ===
+晶体管 0: MP1 类型=PMOS Gate=A Source=VDD Drain=Y nfin=2
+晶体管 1: MN1 类型=NMOS Gate=A Source=VSS Drain=Y nfin=1
+晶体管 2: MP2 类型=PMOS Gate=ENB Source=IN Drain=OUT nfin=2
+晶体管 3: MN2 类型=NMOS Gate=EN Source=IN Drain=OUT nfin=1
+晶体管 4: MP3 类型=PMOS Gate=B Source=VDD Drain=X nfin=1
+晶体管 5: MN3 类型=NMOS Gate=B Source=VSS Drain=X nfin=1
+
+=== 步骤1: 晶体管合并 ===
+合并: VDD|Y|A|PMOS|2 -> MERGED_0 (nfin=2)
+合并: VSS|Y|A|NMOS|1 -> MERGED_1 (nfin=1)
+合并: IN|OUT|ENB|PMOS|2 -> MERGED_2 (nfin=2)
+合并: IN|OUT|EN|NMOS|1 -> MERGED_3 (nfin=1)
+合并: VDD|X|B|PMOS|1 -> MERGED_4 (nfin=1)
+合并: VSS|X|B|NMOS|1 -> MERGED_5 (nfin=1)
+原始晶体管数量: 6
+合并后晶体管数量: 6
+
+=== 步骤2: 特殊结构预匹配 ===
+反相器匹配: MERGED_0 + MERGED_1 (gate: A)
+传输门匹配: MERGED_2 + MERGED_3 (gates: ENB vs EN)
+反相器匹配: MERGED_4 + MERGED_5 (gate: B)
+预匹配的特殊结构数量: 3
+
+=== 步骤3: 离散晶体管提取 ===
+离散晶体管数量: 0
+
+=== 最终配对结果 ===
+预匹配的特殊结构数量: 3
+离散晶体管数量: 0
+
+=== 预匹配的特殊结构详情 ===
+配对 0: [反相器] PMOS数量=1 NMOS数量=1
+  PMOS: MERGED_0 (gate=A)
+  NMOS: MERGED_1 (gate=A)
+配对 1: [传输门] PMOS数量=1 NMOS数量=1
+  PMOS: MERGED_2 (gate=ENB)
+  NMOS: MERGED_3 (gate=EN)
+配对 2: [反相器] PMOS数量=1 NMOS数量=1
+  PMOS: MERGED_4 (gate=B)
+  NMOS: MERGED_5 (gate=B)
+
+=== 模拟完成 ===

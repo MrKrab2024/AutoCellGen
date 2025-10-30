@@ -1,0 +1,49 @@
+# Makefile for testing advanced pairing algorithm
+
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -I./header
+SRCDIR = src
+HEADERDIR = header
+OBJDIR = obj
+BINDIR = bin
+
+# Source files
+SOURCES = $(wildcard $(SRCDIR)/*.cpp)
+OBJECTS = $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+TARGET = $(BINDIR)/test_advanced_pairing
+EXAMPLE_TARGET = $(BINDIR)/example_usage
+
+# Default target
+all: $(TARGET) $(EXAMPLE_TARGET)
+
+# Create directories
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+$(BINDIR):
+	mkdir -p $(BINDIR)
+
+# Compile object files
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Link executables
+$(TARGET): $(OBJDIR)/test_advanced_pairing.o | $(BINDIR)
+	$(CXX) $< -o $@
+
+$(EXAMPLE_TARGET): $(OBJDIR)/example_usage.o | $(BINDIR)
+	$(CXX) $< -o $@
+
+# Clean
+clean:
+	rm -rf $(OBJDIR) $(BINDIR)
+
+# Run tests
+test: $(TARGET)
+	./$(TARGET)
+
+example: $(EXAMPLE_TARGET)
+	./$(EXAMPLE_TARGET)
+
+# Phony targets
+.PHONY: all clean test example

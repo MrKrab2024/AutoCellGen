@@ -1,7 +1,7 @@
 #pragma once
 
 #include "global.h"
-#include "z3++.h"
+// #include "z3++.h"  // Temporarily disabled
 
 class Grid_vertex;
 class Grid_edge;

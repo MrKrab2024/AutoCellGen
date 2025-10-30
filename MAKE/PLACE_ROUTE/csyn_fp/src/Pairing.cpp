@@ -38,22 +38,27 @@
 #include <string>
 
 void Pairer::pairing() {
-    num_tran = static_cast<int>(cell.trans.size());
+    if (useAdvancedPairing) {
+        // 使用新的高级配对算法
+        advancedPairing();
+    } else {
+        // 使用传统配对算法
+        num_tran = static_cast<int>(cell.trans.size());
 
-    ispaired.resize(num_tran, false);
+        ispaired.resize(num_tran, false);
 
-    grouping();
+        grouping();
 
-	find_complement_net();
+        find_complement_net();
 
-    if (comp_net_list.size() > 0) find_transmission_candidate();
+        if (comp_net_list.size() > 0) find_transmission_candidate();
 
-    if (transmission_list.size() > 0) pairing_cross_coupled();
-    
-    pairing_transistors();
+        if (transmission_list.size() > 0) pairing_cross_coupled();
+        
+        pairing_transistors();
+    }
 
     std::cout << "Pairing done!" << std::endl;
-
 }
 
 void Pairer::grouping() {
@@ -569,4 +574,47 @@ void Pairer::pairing_transistors() {
             }
         }
     }
+}
+
+void Pairer::advancedPairing() {
+    std::cout << "使用高级配对算法..." << std::endl;
+    
+    // 调用高级配对器
+    advancedPairer.advancedPairing();
+    
+    // 将结果转换为传统格式以保持兼容性
+    pair_list.clear();
+    
+    // 添加预匹配的特殊结构
+    for (const auto& pair : advancedPairer.preMatchedPairs) {
+        pair_list.push_back(pair);
+    }
+    
+    // 添加匹配的配对组
+    for (const auto& pairGroup : advancedPairer.matchedPairGroups) {
+        for (const auto& pair : pairGroup.pairList) {
+            pair_list.push_back(pair);
+        }
+    }
+    
+    // 添加离散晶体管作为单独的配对
+    for (const auto& trans : advancedPairer.discreteTransistors) {
+        Pair pair;
+        pair.addTransistor(trans);
+        pair_list.push_back(pair);
+    }
+    
+    std::cout << "高级配对完成，总配对数量: " << pair_list.size() << std::endl;
+}
+
+std::vector<Pair> Pairer::getPairList() const {
+    return pair_list;
+}
+
+std::vector<PairGroup> Pairer::getMatchedPairGroups() const {
+    return advancedPairer.matchedPairGroups;
+}
+
+std::vector<Transistor> Pairer::getDiscreteTransistors() const {
+    return advancedPairer.discreteTransistors;
 }

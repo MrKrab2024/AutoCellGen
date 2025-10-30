@@ -36,6 +36,7 @@
 #include "global.h"
 #include "beol_data.h"
 #include "setting.h"
+#include "AdvancedPairing.h"
 
 class Pair {
 public:
@@ -51,20 +52,30 @@ public:
 
 class Pairer {
 public:
-    Pairer(Cell &_cell) : cell(_cell) {}
+    Pairer(Cell &_cell) : cell(_cell), advancedPairer(_cell) {}
 
     void pairing();
 
+    // 传统配对方法（保留用于兼容性）
     void grouping();
     void find_complement_net();
     void find_transmission_candidate();
     void pairing_cross_coupled();
     void pairing_transistors();
-
+    
+    // 高级配对方法
+    void advancedPairing();
+    
+    // 获取配对结果
+    std::vector<Pair> getPairList() const;
+    std::vector<PairGroup> getMatchedPairGroups() const;
+    std::vector<Transistor> getDiscreteTransistors() const;
 
 public:
     Cell &cell;
+    AdvancedPairer advancedPairer;
 
+    // 传统配对相关变量（保留用于兼容性）
     int num_tran;
     std::vector<bool> ispaired;
 
@@ -76,6 +87,7 @@ public:
     
     std::vector<Pair> pair_list;
     std::unordered_map<int, int> pairGroup;
-
-
+    
+    // 高级配对结果
+    bool useAdvancedPairing = true;
 };
