@@ -4,8 +4,9 @@
 #include "global.h"
 #include "beol_data.h"
 #include "RouteGrid.h"
-#include "z3++.h"
+// #include "z3++.h"  // Temporarily disabled
 #include "RoutingResult.h"
+#include "PlacementResult.h"
 
 enum class routing_direction {BOTH, HOR, VER};
 enum class ASAP_DR { GATE_PITCH = 54, GATE_WIDTH = 20, CELL_HEIGHT = 270, GATE_TIP_VER = 5, GCUT_HEIGHT = 44,
@@ -35,6 +36,25 @@ public:
         else M2 = routing_direction::VER;
 
     }
+    
+    // 新增：从布局结果文件创建Router
+    Router (Cell c, const std::string& placementFilePath) : cell(c) {
+        grid = nullptr;
+        grid_edge = nullptr;
+        is_routable = false;
+        m2_usage = 0;
+
+        if (setting.m1_dir == "BOTH") M1 = routing_direction::BOTH;
+        else if (setting.m1_dir == "HOR") M1 = routing_direction::HOR;
+        else M1 = routing_direction::VER;
+
+        if (setting.m2_dir == "BOTH") M2 = routing_direction::BOTH;
+        else if (setting.m2_dir == "HOR") M2 = routing_direction::HOR;
+        else M2 = routing_direction::VER;
+        
+        // 从文件加载布局结果
+        loadPlacementFromFile(placementFilePath);
+    }
 
     ~Router();
     
@@ -42,17 +62,20 @@ public:
 
     void initialize_grid();
     void generate_pin_map();
-    void add_detailed_routing_formulation (z3::context & c, z3::optimize & opt);
+    // void add_detailed_routing_formulation (z3::context & c, z3::optimize & opt);  // Temporarily disabled
 
-    z3::check_result solve_SMT (z3::optimize &opt);
+    // z3::check_result solve_SMT (z3::optimize &opt);  // Temporarily disabled
 
-    void gather_result (z3::context &c, z3::optimize &opt);
+    // void gather_result (z3::context &c, z3::optimize &opt);  // Temporarily disabled
     void print_result (std::ofstream &out);
 
     void generate_ascii (std::ofstream &out, std::string cell_name);
     void ascii_to_gdsii (fs::path ascii_path);
 
     void DFS_Metal (std::shared_ptr<RoutingResult> route, std::vector<Point>& components, int y, int x, std::vector<std::vector<bool>>& explored, int metal_layer);
+    
+    // 新增：从布局结果文件加载数据
+    bool loadPlacementFromFile(const std::string& placementFilePath);
 
 
 public:

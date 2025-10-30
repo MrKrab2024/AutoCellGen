@@ -1,4 +1,5 @@
 #include "../header/Placer.h"
+#include <filesystem>
 
 Placer::Placer() {
     min_width = 9999;
@@ -48,6 +49,9 @@ void Placer::run() {
 	std::string filePath = out_dir + "/" + cell.name + ".txt";
     std::cout<<"filePath: "<<filePath<<std::endl;
     printSolution(filePath);
+    
+    // 保存布局结果到文件
+    savePlacementResults(out_dir);
   
     //fs::path outPath = fs::current_path() / fs::path("placements") / fs::path(cell.name);
     //fs::create_directories(outPath);
@@ -1028,4 +1032,38 @@ void Placer::calculateState(PlaceUnit& prev, PlaceUnit& curr) {
 
     if (setting.remove_dom) curr.disableRedundantDStates();
 
+}
+
+void Placer::savePlacementResults(const std::string& outputDir) {
+    // 创建布局结果目录
+    fs::path placementDir = fs::path(outputDir) / "placement_results";
+    if (!fs::exists(placementDir)) {
+        fs::create_directories(placementDir);
+    }
+    
+    // 保存所有宽度的所有解决方案
+    for (int width = min_width; width <= min_width + setting.relaxation; width++) {
+        if (solutions.find(width) != solutions.end()) {
+            auto& w_solutions = solutions[width];
+            for (int i = 0; i < w_solutions.size(); i++) {
+                savePlacementResult(w_solutions[i], cell.name, width, i, placementDir.string());
+            }
+        }
+    }
+}
+
+void Placer::savePlacementResult(const PlaceGrid& solution, const std::string& cellName, int width, int solutionIndex, const std::string& outputDir) {
+    PlacementResult result(solution, cellName, width);
+    result.setSolutionIndex(solutionIndex);
+    
+    // 生成文件名
+    std::string fileName = cellName + "_w" + std::to_string(width + 2) + "_sol" + std::to_string(solutionIndex) + ".placement";
+    fs::path filePath = fs::path(outputDir) / fileName;
+    
+    // 保存到文件
+    if (result.saveToFile(filePath.string())) {
+        std::cout << "Saved placement result: " << filePath << std::endl;
+    } else {
+        std::cerr << "Failed to save placement result: " << filePath << std::endl;
+    }
 }

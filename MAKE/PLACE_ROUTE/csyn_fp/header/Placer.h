@@ -39,6 +39,7 @@
 #include "PlaceUnit.h"
 #include "PlaceGrid.h"
 #include "PlaceGroupUnit.h"
+#include "PlacementResult.h"
 
 #define MAX_OFFSET 9999
 
@@ -89,6 +90,10 @@ public:
     void print_refinedSol(fs::path outPath);
     void refineSolution();
     //void addSolution(std::vector<DynamicState*> &dPtrList, std::vector<int> &order, int width);
+
+    // 新增：保存布局结果到文件
+    void savePlacementResults(const std::string& outputDir);
+    void savePlacementResult(const PlaceGrid& solution, const std::string& cellName, int width, int solutionIndex, const std::string& outputDir);
 
     void calculateState (PlaceUnit& prev, PlaceUnit& curr);
 

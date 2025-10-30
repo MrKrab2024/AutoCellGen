@@ -1,4 +1,5 @@
 #include "../header/Router.h"
+#include <filesystem>
 
 Router::~Router() {
 
@@ -421,10 +422,12 @@ void Router::generate_pin_map() {
 }
 
 
+// Temporarily disabled Z3 functions - add_detailed_routing_formulation
+/* DISABLED
 void Router::add_detailed_routing_formulation(z3::context & c, z3::optimize & opt) {
 
 	// Variables for detailed routing
-	// metal routing map (x, y, z, n)1
+	// metal routing map (x, y, z, n)
 	z3::expr_vector metal_grid(c);
 
 	z3::expr_vector hor_grid(c);
@@ -1589,7 +1592,7 @@ void Router::add_detailed_routing_formulation(z3::context & c, z3::optimize & op
 	}
 	
 	// M2 restriction
-/*
+// /*
 	z3::expr sum_m2 = c.int_val(0);
 	
 	for (int n = 0; n < num_net_to_connect; n++) {
@@ -1602,7 +1605,7 @@ void Router::add_detailed_routing_formulation(z3::context & c, z3::optimize & op
 	int num_resources = track_num * (col_size - 1);
 	int limit = num_resources / 2;
 	opt.add(sum_m2 <= limit);	
-*/
+// */
 
 	// Objective
 	
@@ -1649,70 +1652,74 @@ void Router::add_detailed_routing_formulation(z3::context & c, z3::optimize & op
 	if (setting.min_m2) z3::optimize::handle obj1 = opt.minimize(sum_m2);
 	//z3::optimize::handle obj2 = opt.minimize(sum_v1);
 	//z3::optimize::handle obj1 = opt.minimize(sum_m2);
+	if (setting.min_m2) z3::optimize::handle obj1 = opt.minimize(sum_m2);
 	if (setting.min_m1) z3::optimize::handle obj2 = opt.minimize(sum_m1);
 	
 }
+*/
+// END DISABLED
 
 
-z3::check_result Router::solve_SMT (z3::optimize &opt) {
-	std::cout << opt << std::endl;
-	z3::check_result result = opt.check();
-	std::cout << opt.statistics() << std::endl;
-	std::cout << result << std::endl;
-	if (result == z3::sat) {
-		z3::model m = opt.get_model();
-		std::cout << m << std::endl;
-	}
-	return result;
-}
+// z3::check_result Router::solve_SMT (z3::optimize &opt) {
+//	std::cout << opt << std::endl;
+//	z3::check_result result = opt.check();
+//	std::cout << opt.statistics() << std::endl;
+//	std::cout << result << std::endl;
+//	if (result == z3::sat) {
+//		z3::model m = opt.get_model();
+//		std::cout << m << std::endl;
+//	}
+//	return result;
+// }
 
-void Router::gather_result(z3::context &c, z3::optimize &opt) {
-	z3::model m = opt.get_model();
-
-	// Variables for detailed routing
-	// metal routing map (x, y, z, n)
-	z3::expr_vector metal_grid(c);
-
-	z3::expr_vector hor_grid(c);
-	z3::expr_vector ver_grid(c);
-	z3::expr_vector via_grid(c);
-
-	int track_num = row_size;
-	int num_net_to_connect = 0;
-	int layer_num = num_layer;
-
-
-	auto idx = [&](int x, int y, int z, int n_idx) {
-		return n_idx * layer_num * track_num * col_size + z * track_num * col_size + y * col_size + x;
-	};
-
-	for (auto & iter : pin_map) {
-		for (int z = 0; z < layer_num; z++) {
-			for (int y = 0; y < track_num; y++) {
-				for (int x = 0; x < col_size; x++) {
-					std::string metal_name = iter.first + "_(" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")";
-					
-					metal_grid.push_back(c.int_const(metal_name.c_str()));
-				}
-			}
-		}
-		num_net_to_connect++;
-	}	
-
-	// hor_grid
-	auto h_idx = [&](int x, int y, int z, int n_idx) {
-		return n_idx * layer_num * track_num * (col_size - 1) + z * track_num * (col_size - 1) + y * (col_size - 1) + x;
-	};
-	int n = 0;
-	for (auto & iter : pin_map) {
-		for (int z = 0; z < layer_num; z++) {
-			for (int y = 0; y < track_num; y++) {
-				for (int x = 0; x < col_size - 1; x++) {
-					std::string hor_name = iter.first + "_h(" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")";
-					hor_grid.push_back(c.int_const(hor_name.c_str()));
-				}
-			}
-		}		
+/* DISABLED - gather_result function
+// void Router::gather_result(z3::context &c, z3::optimize &opt) {
+//	z3::model m = opt.get_model();
+//
+//	// Variables for detailed routing
+//	// metal routing map (x, y, z, n)
+//	z3::expr_vector metal_grid(c);
+//
+//	z3::expr_vector hor_grid(c);
+//	z3::expr_vector ver_grid(c);
+//	z3::expr_vector via_grid(c);
+//
+//	int track_num = row_size;
+//	int num_net_to_connect = 0;
+//	int layer_num = num_layer;
+//
+//
+//	auto idx = [&](int x, int y, int z, int n_idx) {
+//		return n_idx * layer_num * track_num * col_size + z * track_num * col_size + y * col_size + x;
+//	};
+//
+//	for (auto & iter : pin_map) {
+//		for (int z = 0; z < layer_num; z++) {
+//			for (int y = 0; y < track_num; y++) {
+//				for (int x = 0; x < col_size; x++) {
+//					std::string metal_name = iter.first + "_(" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")";
+//					
+//					metal_grid.push_back(c.int_const(metal_name.c_str()));
+//				}
+//			}
+//		}
+//		num_net_to_connect++;
+//	}	
+//
+//	// hor_grid
+//	auto h_idx = [&](int x, int y, int z, int n_idx) {
+//		return n_idx * layer_num * track_num * (col_size - 1) + z * track_num * (col_size - 1) + y * (col_size - 1) + x;
+//	};
+//	int n = 0;
+//	for (auto & iter : pin_map) {
+//		for (int z = 0; z < layer_num; z++) {
+//			for (int y = 0; y < track_num; y++) {
+//				for (int x = 0; x < col_size - 1; x++) {
+//					std::string hor_name = iter.first + "_h(" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")";
+//					hor_grid.push_back(c.int_const(hor_name.c_str()));
+//				}
+//			}
+//		}		
 		n++;
 	}
 
@@ -1920,6 +1927,8 @@ void Router::gather_result(z3::context &c, z3::optimize &opt) {
 		}
 	}
 }
+*/
+// END DISABLED
 
 void Router::print_result(std::ofstream &out) {
 
@@ -2079,7 +2088,8 @@ bool Router::routing(fs::path output_path) {
 	initialize_grid();
 	generate_pin_map();
 
-	z3::set_param("timeout", 60 * 60000);
+	// Temporarily disabled Z3 routing
+	// z3::set_param("timeout", 60 * 60000);
 	//z3::set_param("parallel.enable", true);
 	//z3::set_param("parallel.threads.max", 4);
 	//std::cout << opt << std::endl;
@@ -2151,6 +2161,8 @@ bool Router::routing(fs::path output_path) {
 		out << std::endl;
 	}	
 	
+	// Z3 routing disabled - skip SMT solving
+	/*
 	z3::context c;
 	z3::optimize opt(c);
 
@@ -2201,6 +2213,7 @@ bool Router::routing(fs::path output_path) {
 
 		is_routable = false;
 	}
+	*/
 	out.close();
 	std::cout << "routing step done!" << std::endl;
     return true;
@@ -3638,4 +3651,21 @@ void Router::ascii_to_gdsii(fs::path ascii_path) {
 	//std::cout << mv_gds << std::endl;
 	system(run_gds.c_str());
 	system(mv_gds.c_str());
+}
+
+bool Router::loadPlacementFromFile(const std::string& placementFilePath) {
+    PlacementResult result;
+    if (!result.loadFromFile(placementFilePath)) {
+        std::cerr << "Failed to load placement from file: " << placementFilePath << std::endl;
+        return false;
+    }
+    
+    // 设置place_sol
+    place_sol = result.getPlaceGrid();
+    
+    std::cout << "Loaded placement from file: " << placementFilePath << std::endl;
+    std::cout << "Cell: " << result.getCellName() << ", Width: " << result.getWidth() 
+              << ", Solution: " << result.getSolutionIndex() << std::endl;
+    
+    return true;
 }
