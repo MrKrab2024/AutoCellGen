@@ -2,9 +2,13 @@
 
 Placer::Placer() {
     min_width = 9999;
+    timeout_occurred = false;
 }
 
 void Placer::run() {
+    // 初始化超时检查
+    start_time = std::chrono::steady_clock::now();
+    timeout_occurred = false;
 
     Pairer pairer(cell);
     pairer.pairing();
@@ -17,6 +21,13 @@ void Placer::run() {
 
     numUnit = units.size();
     std::cout << "test_NumUnit : " << numUnit << std::endl;
+    
+    // 检查单元数目是否过多，如果超过阈值则跳过
+    const int MAX_UNITS = 15; // 设置最大单元数阈值
+    if (numUnit > MAX_UNITS) {
+        std::cout << "警告：单元 " << cell.name << " 的单元数过多 (" << numUnit << " > " << MAX_UNITS << ")，跳过处理" << std::endl;
+        return;
+    }
 
     for (const auto& unit : units) {
         if (unit.pair.is_xc_pair) std::cout << "XC pair, #States : " << unit.states.size() << std::endl;
@@ -86,9 +97,19 @@ void Placer::runSearchOnly() {
 }
 
 void Placer::runEachGroup() {
+    // 初始化超时检查
+    start_time = std::chrono::steady_clock::now();
+    timeout_occurred = false;
+    
+    std::cout << "  runEachGroup: 开始生成布局单元..." << std::endl;
     generatePlaceUnit();
+    std::cout << "  runEachGroup: 开始搜索布局解..." << std::endl;
     runSearchwithRelax();
-    if (setting.refine_sol) refineSolution();
+    if (setting.refine_sol) {
+        std::cout << "  runEachGroup: 开始优化解..." << std::endl;
+        refineSolution();
+    }
+    std::cout << "  runEachGroup: 完成" << std::endl;
 }
 
 
@@ -116,6 +137,40 @@ void Placer::generatePlaceUnit() {
 }
 
 void Placer::findSolution(int curr, int prev, std::vector<int>& order, bool fix_bound) {
+    // 如果已经超时，直接返回
+    if (timeout_occurred) {
+        return;
+    }
+    
+    // 添加进度打印和更频繁的超时检查
+    static int call_count = 0;
+    static auto last_check = std::chrono::steady_clock::now();
+    static auto last_print = std::chrono::steady_clock::now();
+    call_count++;
+    
+    // 每隔一定调用次数或时间间隔检查超时（提高响应速度）
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed_since_check = std::chrono::duration_cast<std::chrono::seconds>(now - last_check).count();
+    auto elapsed_since_print = std::chrono::duration_cast<std::chrono::seconds>(now - last_print).count();
+    
+    // 每5000次调用或每1秒检查一次超时（提高检查频率）
+    bool should_check_timeout = (call_count % 5000 == 0) || (elapsed_since_check >= 1);
+    
+    // 检查超时（使用秒级精度，更及时）
+    if (should_check_timeout) {
+        last_check = now;
+        auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
+        if (elapsed_sec >= TIMEOUT_MINUTES * 60) {
+            timeout_occurred = true;
+            std::cout << "    [超时] 单元运行时间超过 " << TIMEOUT_MINUTES << " 分钟 (已运行 " << elapsed_sec << " 秒)，停止搜索" << std::endl;
+            return;
+        }
+        // 每5秒打印一次进度
+        if (elapsed_since_print >= 5) {
+            std::cout << "    findSolution: 递归深度=" << curr << ", 调用次数=" << call_count << ", 已运行 " << elapsed_sec << " 秒" << std::endl;
+            last_print = now;
+        }
+    }
 
     // removing symetric solution
     

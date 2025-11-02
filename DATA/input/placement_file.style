@@ -15,7 +15,8 @@ TECH asap7v3
 FIN_DIFF_GAP 1
 
 # diffusion gap number when the net is different
-NET_DIFF_GAP 1:
+# 设置为2以使用DDB (如果为1则使用SDB)
+NET_DIFF_GAP 2
 
 # od jog rule number
 MIN_OD_JOG 1 # MIN_OD_JOG is longer than 1; MIN_OD_JOG 2
@@ -85,7 +86,7 @@ ROUTE_ACCEPT 12
 #############################################
 
 # number of place solutions generated
-NUM_SOL 1000
+NUM_SOL 2
 
 # number of route solutions generated
 ROUTE_SOL 5

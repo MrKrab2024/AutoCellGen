@@ -167,16 +167,44 @@ int main(int argc, char **argv) {
     int ncell = l.cells.size();
 
     std::cout << "The number of cells : " << l.cells.size() << std::endl;
+    
+    // 添加超时机制（仅用于统计，不限制总运行时间）
+    auto start_time = std::chrono::steady_clock::now();
+    const int TIMEOUT_MINUTES = 999999; // 移除总超时限制，只使用每个cell的5分钟超时
 
     std::ofstream out(output_path.string() + "/summary.txt");
 
     for (int i = 0; i < ncell; i++) {
+        // 检查超时
+        auto current_time = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::minutes>(current_time - start_time);
+        if (elapsed.count() >= TIMEOUT_MINUTES) {
+            std::cout << "超时退出：已运行 " << elapsed.count() << " 分钟，超过 " << TIMEOUT_MINUTES << " 分钟限制" << std::endl;
+            break;
+        }
+        
         //if (!(i == 52 || (i >= 65 && i <= 72) || i == 79 || (i >= 85 && i <= 87))) continue;
         Cell &temp = l.cells[i];
 
+        // 屏蔽所有BUF类型的单元
+        if (temp.name.find("BUF") != std::string::npos) {
+            std::cout << "跳过BUF类型单元: " << temp.name << std::endl;
+            out << "跳过BUF类型单元: " << temp.name << std::endl;
+            continue;
+        }
+        
+        // 检查晶体管数量，如果过多则跳过
+        if (temp.trans.size() > 50) {
+            std::cout << "跳过晶体管数量过多的单元: " << temp.name << " (晶体管数: " << temp.trans.size() << ")" << std::endl;
+            out << "跳过晶体管数量过多的单元: " << temp.name << " (晶体管数: " << temp.trans.size() << ")" << std::endl;
+            continue;
+        }
+
         //if (temp.name != "AO333x1_ASAP7_6t_R") continue;
 		
-        std::cout << output_path << std::endl;
+        std::cout << "=== 处理单元 " << (i+1) << "/" << ncell << ": " << temp.name << " ===" << std::endl;
+        std::cout << "晶体管数量: " << temp.trans.size() << std::endl;
+        std::cout << "输出路径: " << output_path << std::endl;
         out << "(" << i << ") ";
         out << "Cell name : " << temp.name << std::endl;
         out << "The number of transistors = " << temp.trans.size() << std::endl;
@@ -201,22 +229,54 @@ int main(int argc, char **argv) {
         //fs::create_directories(cell_output_path);
 		//
         if (temp.trans.size() > 10) {
-            std::cout<<'\n'<<"case1"<<'\n'<<std::endl;
+            std::cout<<'\n'<<"case1 - 使用GroupPlacer处理大单元"<<'\n'<<std::endl;
+            std::cout << "开始GroupPlacer布局..." << std::endl;
             GroupPlacer placer(l.cells[i]);
 			placer.out_dir = output_path;
-            auto start = std::chrono::steady_clock::now();
+            auto cell_start = std::chrono::steady_clock::now();
+            std::cout << "调用placer.run()..." << std::endl;
             placer.run();
-            auto end = std::chrono::steady_clock::now();
+            auto cell_end = std::chrono::steady_clock::now();
+            auto cell_elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cell_end - cell_start).count();
+            auto cell_elapsed_sec = cell_elapsed_ms / 1000.0;
+            auto cell_elapsed_min = cell_elapsed_sec / 60.0;
+            
+            std::cout << "GroupPlacer完成，耗时: " << cell_elapsed_ms << "ms (" << cell_elapsed_sec << "秒)" << std::endl;
+            
+            // 检查是否超时
+            if (placer.timeout_occurred || cell_elapsed_min >= 5.0) {
+                std::cout << "警告：单元 " << temp.name << " 运行时间超过 5 分钟，已跳过，继续处理下一个cell" << std::endl;
+                out << "状态: 超时跳过 (运行时间: " << cell_elapsed_sec << " 秒)" << std::endl;
+                out << std::endl;
+                out.flush();  // 立即刷新文件
+                continue;  // 跳过当前cell，继续下一个
+            }
+            
+            // 计算布局数量
+            int total_solutions = 0;
+            for (int width = placer.min_width; width <= placer.min_width + setting.relaxation; width++) {
+                if (placer.solutions.find(width) != placer.solutions.end()) {
+                    total_solutions += placer.solutions[width].size();
+                }
+            }
+            
             out << "Min #CPP = " << placer.min_width + 2 << std::endl;
-            //out << "The number of solutions = " << placer.solutions.size() << std::endl;
-            out << "Placement time : " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+            out << "Placement time : " << cell_elapsed_ms << "ms (" << cell_elapsed_sec << "秒)" << std::endl;
+            out << "Number of solutions : " << total_solutions << std::endl;
+            if (placer.solutions.find(placer.min_width) != placer.solutions.end()) {
+                out << "Number of solutions (min width) : " << placer.solutions[placer.min_width].size() << std::endl;
+            }
             std::vector<int> group_pair(placer.numGroup, 0);
             for (auto& pair_list : placer.pairGroup) {
                 group_pair[pair_list.second]++;
             }
-            out << "#Groups = " << placer.numGroup << ", ";
-            for (int i = 0; i < placer.numGroup; i++) out << group_pair[i] << " ";
-            out << std::endl << std::endl;
+            out << "#Groups = " << placer.numGroup << " (";
+            for (int j = 0; j < placer.numGroup; j++) {
+                out << "组" << j << ":" << group_pair[j];
+                if (j < placer.numGroup - 1) out << ", ";
+            }
+            out << ")" << std::endl << std::endl;
+            out.flush();  // 立即刷新文件，确保数据及时写入
 
 			fs::path IOpath = output_path / fs::path("../IOnet/"); 
     		if(!fs::exists(IOpath)) fs::create_directories(IOpath);
@@ -241,7 +301,8 @@ int main(int argc, char **argv) {
             }
             */
 
-            // Routing
+            // Routing - 暂时屏蔽布线部分，仅进行布局
+            /*
             for (int width = placer.min_width; width <= placer.min_width + setting.relaxation; width++) {
                 //if (width - placer.min_width < 2) continue;
                 if (placer.solutions.find(width) != placer.solutions.end()) {
@@ -304,18 +365,48 @@ int main(int argc, char **argv) {
                 }
 
             }
+            */
        }
 
        else { 
-            std::cout<<'\n'<<"case2"<<'\n'<<std::endl;
+            std::cout<<'\n'<<"case2 - 使用Placer处理小单元"<<'\n'<<std::endl;
+            std::cout << "开始Placer布局..." << std::endl;
             Placer placer(l.cells[i]);
 			placer.out_dir = output_path;
-            auto start = std::chrono::steady_clock::now();
+            auto cell_start = std::chrono::steady_clock::now();
+            std::cout << "调用placer.run()..." << std::endl;
             placer.run();
-            auto end = std::chrono::steady_clock::now();
+            auto cell_end = std::chrono::steady_clock::now();
+            auto cell_elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cell_end - cell_start).count();
+            auto cell_elapsed_sec = cell_elapsed_ms / 1000.0;
+            auto cell_elapsed_min = cell_elapsed_sec / 60.0;
+            
+            std::cout << "Placer完成，耗时: " << cell_elapsed_ms << "ms (" << cell_elapsed_sec << "秒)" << std::endl;
+            
+            // 检查是否超时
+            if (placer.timeout_occurred || cell_elapsed_min >= 5.0) {
+                std::cout << "警告：单元 " << temp.name << " 运行时间超过 5 分钟，已跳过，继续处理下一个cell" << std::endl;
+                out << "状态: 超时跳过 (运行时间: " << cell_elapsed_sec << " 秒)" << std::endl;
+                out << std::endl;
+                out.flush();  // 立即刷新文件
+                continue;  // 跳过当前cell，继续下一个
+            }
+            
+            // 计算布局数量
+            int total_solutions = 0;
+            for (int width = placer.min_width; width <= placer.min_width + setting.relaxation; width++) {
+                if (placer.solutions.find(width) != placer.solutions.end()) {
+                    total_solutions += placer.solutions[width].size();
+                }
+            }
+            
             out << "Min #CPP = " << placer.min_width + 2 << std::endl;
-            //out << "The number of solutions = " << placer.solutions.size() << std::endl;
-            out << "Placement time : " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+            out << "Placement time : " << cell_elapsed_ms << "ms (" << cell_elapsed_sec << "秒)" << std::endl;
+            out << "Number of solutions : " << total_solutions << std::endl;
+            if (placer.solutions.find(placer.min_width) != placer.solutions.end()) {
+                out << "Number of solutions (min width) : " << placer.solutions[placer.min_width].size() << std::endl;
+            }
+            out.flush();  // 立即刷新文件，确保数据及时写入
             //out << std::endl;
 
 			fs::path IOpath = output_path / fs::path("../IOnet/"); 
@@ -338,7 +429,8 @@ int main(int argc, char **argv) {
                 }
             }*/
            
-            // Routing
+            // Routing - 暂时屏蔽布线部分，仅进行布局
+            /*
             for (int width = placer.min_width; width <= placer.min_width + setting.relaxation; width++) {
                 //if (width != placer.min_width + setting.relaxation) continue;
                 if (placer.solutions.find(width) != placer.solutions.end()) {
@@ -403,6 +495,7 @@ int main(int argc, char **argv) {
                     if (is_m1_routable) break;
                 }
             }
+            */
        }
        out << std::endl;
     }

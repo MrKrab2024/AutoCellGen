@@ -52,7 +52,11 @@ public:
     int lower_bound; // can be changed during search
 
 	std::string out_dir;
-
+    
+    // timeout support
+    std::chrono::steady_clock::time_point start_time;
+    bool timeout_occurred;
+    static const int TIMEOUT_MINUTES = 5; // 5分钟超时
 
     // after pairing
     std::unordered_map<int, int> pairGroup; // pair index->group index

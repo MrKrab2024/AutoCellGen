@@ -1,6 +1,9 @@
 #include "../header/GroupPlacer.h"
 
 void GroupPlacer::run() {
+    // 初始化超时检查
+    start_time = std::chrono::steady_clock::now();
+    timeout_occurred = false;
 
     Pairer pairer(cell);
     pairer.pairing();
@@ -19,6 +22,29 @@ void GroupPlacer::run() {
     }
     // 1. generate placer per each group
     numGroup = pairer.num_group;
+    
+    // 检查组数目是否过多，如果超过阈值则跳过
+    const int MAX_GROUPS = 6; // 设置最大组数阈值
+    if (numGroup > MAX_GROUPS) {
+        std::cout << "警告：单元 " << cell.name << " 的组数过多 (" << numGroup << " > " << MAX_GROUPS << ")，跳过处理" << std::endl;
+        return;
+    }
+    
+    // 检查组内晶体管对数量，如果过多则跳过
+    const int MAX_PAIRS_PER_GROUP = 15; // 设置每组最大晶体管对数阈值
+    std::vector<int> pairs_per_group(numGroup, 0);
+    for (int i = 0; i < pairs.size(); i++) {
+        int group = pairGroup[i];
+        pairs_per_group[group]++;
+    }
+    
+    for (int i = 0; i < numGroup; i++) {
+        if (pairs_per_group[i] > MAX_PAIRS_PER_GROUP) {
+            std::cout << "警告：单元 " << cell.name << " 的组 " << i << " 晶体管对数量过多 (" << pairs_per_group[i] << " > " << MAX_PAIRS_PER_GROUP << ")，跳过处理" << std::endl;
+            return;
+        }
+    }
+    
     std::vector<Placer> placers(numGroup);
     for (auto& placer : placers) placer.min_width = MAX_OFFSET;
     for (int i = 0; i < pairs.size(); i++) {
@@ -30,8 +56,45 @@ void GroupPlacer::run() {
     int group_index = 0;
     std::vector<int> num_sol;
     for (auto& placer : placers) {
-        std::cout << "Group " << group_index++ << std::endl;
+        // 检查总超时（基于GroupPlacer的start_time，使用秒级精度）
+        if (!timeout_occurred) {
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
+            if (elapsed_sec >= TIMEOUT_MINUTES * 60) {
+                timeout_occurred = true;
+                std::cout << "    [超时] GroupPlacer运行时间超过 " << TIMEOUT_MINUTES << " 分钟 (已运行 " << elapsed_sec << " 秒)，停止处理后续group" << std::endl;
+                break;
+            }
+        } else {
+            break;
+        }
+        
+        std::cout << "Group " << group_index << " 开始处理..." << std::endl;
+        auto group_start = std::chrono::steady_clock::now();
         placer.runEachGroup();
+        auto group_end = std::chrono::steady_clock::now();
+        std::cout << "Group " << group_index << " 完成，耗时: " << std::chrono::duration_cast<std::chrono::milliseconds>(group_end - group_start).count() << "ms" << std::endl;
+        
+        // 如果子placer超时，也标记为超时
+        if (placer.timeout_occurred) {
+            timeout_occurred = true;
+            std::cout << "    [超时] Group " << group_index << " 处理超时，停止处理后续group" << std::endl;
+            // 记录已完成的group信息
+            std::vector<PlaceGrid> solution_all;
+            for (auto& solution_pair : placer.solutions) {
+                if (solution_pair.first > placer.min_width + setting.relaxation) continue;
+                auto& solution_set = solution_pair.second;
+                for (auto& solution : solution_set) {
+                    solution_all.push_back(solution);
+                }
+            }
+            num_sol.push_back(solution_all.size());
+            if (placer.numUnit > 1) groupUnits.emplace_back(solution_all, true);
+            else groupUnits.emplace_back(solution_all, false);
+            break;  // 超时后跳出循环
+        }
+        
+        group_index++;
 
         std::vector<PlaceGrid> solution_all;
         for (auto& solution_pair : placer.solutions) {
@@ -48,8 +111,18 @@ void GroupPlacer::run() {
         //else groupUnits.emplace_back(placer.solutions[placer.min_width], false);
         if (placer.numUnit > 1) groupUnits.emplace_back(solution_all, true);
         else groupUnits.emplace_back(solution_all, false);
+    }
     
-    
+    // 如果超时，不再执行后续操作，直接退出
+    if (timeout_occurred) {
+        std::cout << "    [超时] GroupPlacer已超时，跳过后续操作" << std::endl;
+        // 输出已完成的group信息（安全地访问）
+        for (int i = 0; i < num_sol.size() && i < placers.size(); i++) {
+            std::cout << "Group " << i << " : min_width = " << placers[i].min_width << ", num Sols = " << num_sol[i] << std::endl;
+        }
+        // 超时后不再执行runSearchwithRelax和printSolution，直接返回
+        // 因为min_width可能未正确设置，printSolution可能导致段错误
+        return;  // 超时后直接返回，不执行后续操作
     }
     
     for (int i = 0; i < placers.size(); i++) {
@@ -73,6 +146,12 @@ void GroupPlacer::run() {
 }
 
 void GroupPlacer::runSearchwithRelax() {
+    // 检查超时
+    if (timeout_occurred) {
+        std::cout << "    [超时] GroupPlacer已超时，跳过runSearchwithRelax" << std::endl;
+        return;
+    }
+    
     numGroupUnit = groupUnits.size();
 
     std::vector<int> order(numGroup, -1);
@@ -80,7 +159,7 @@ void GroupPlacer::runSearchwithRelax() {
     findGroupSolution(0, -1, order, false);
     min_width = lower_bound;
 
-    if (setting.relaxation > 0) {
+    if (setting.relaxation > 0 && !timeout_occurred) {
         lower_bound = min_width + setting.relaxation;
         findGroupSolution(0, -1, order, true);
     }
@@ -88,6 +167,17 @@ void GroupPlacer::runSearchwithRelax() {
 
 
 void GroupPlacer::printSolution(std::string outPath) {
+    // 如果超时，不输出解决方案（可能数据不完整）
+    if (timeout_occurred) {
+        std::cout << "    [超时] GroupPlacer已超时，跳过printSolution" << std::endl;
+        return;
+    }
+    
+    // 检查min_width是否有效
+    if (min_width >= MAX_OFFSET || min_width < 0) {
+        std::cout << "    [警告] min_width无效 (" << min_width << ")，跳过printSolution" << std::endl;
+        return;
+    }
 
     for (int width = min_width; width <= min_width + setting.relaxation; width++) {
         std::string out_path = outPath.substr(0, outPath.length() - 4) + "_w" + std::to_string(width + 2) + ".txt";
@@ -112,6 +202,33 @@ void GroupPlacer::printSolution(std::string outPath) {
 }
 
 void GroupPlacer::findGroupSolution(int curr, int prev, std::vector<int>& order, bool fix_bound) {
+    // 如果已经超时，直接返回
+    if (timeout_occurred) {
+        return;
+    }
+    
+    // 添加进度跟踪和更频繁的超时检查
+    static int call_count = 0;
+    static auto last_check = std::chrono::steady_clock::now();
+    call_count++;
+    
+    // 每隔一定调用次数或时间间隔检查超时（提高响应速度）
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed_since_check = std::chrono::duration_cast<std::chrono::seconds>(now - last_check).count();
+    
+    // 每5000次调用或每1秒检查一次超时（提高检查频率）
+    bool should_check_timeout = (call_count % 5000 == 0) || (elapsed_since_check >= 1) || (call_count == 1);
+    
+    // 检查超时（使用秒级精度，更及时）
+    if (should_check_timeout) {
+        last_check = now;
+        auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
+        if (elapsed_sec >= TIMEOUT_MINUTES * 60) {
+            timeout_occurred = true;
+            std::cout << "    [超时] GroupPlacer运行时间超过 " << TIMEOUT_MINUTES << " 分钟 (已运行 " << elapsed_sec << " 秒)，停止搜索" << std::endl;
+            return;
+        }
+    }
 
     // removing symetric solution
     
